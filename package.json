@@ -1,0 +1,13 @@
+{
+  "name": "threejs-exp01",
+  "version": "1.0.0",
+  "main": "app.js",
+  "author": "Toby Sullivan <tobyjsullivan@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "webxr-polyfill": "^1.0.11"
+  },
+  "devDependencies": {
+    "cssnano": "^4.1.7"
+  }
+}
