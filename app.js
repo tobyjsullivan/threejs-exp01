@@ -14,6 +14,7 @@ import VRControls from './lib/VRControls';
 import WebXRPolyfill from 'webxr-polyfill';
 import IMG_SQUARE from './square_small.jpeg';
 
+let currentSession = null;
 
 class FallbackPositioner {
   constructor() {
@@ -97,7 +98,20 @@ function createViewer(textureLoader) {
   return viewer;
 }
 
-function main() {
+function beginXRSession(device) {
+  if (currentSession === null) {
+    device.requestSession({immersive: true}).then((session) => {
+      console.log('session started.');
+      currentSession = session;
+      runExperience(device, session);
+    });
+  } else {
+    console.log('Ending session.');
+    currentSession.end();
+  }
+}
+
+function runExperience(device, session) {
   const scene = new Scene();
   const camera = new PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -107,19 +121,28 @@ function main() {
   const vrControls = new VRControls(camera);
   let positioner = new FallbackPositioner();
 
-  if (navigator.getVRDisplays) {
-    navigator.getVRDisplays().then((displays) => {
-      console.log('Displays: %o', displays);
-      positioner = new DevicePositioner(displays[0]);
-    });
-  } else {
-    console.warn('navigator.getVRDisplays not available.');
-  }
+  // if (navigator.getVRDisplays) {
+  //   navigator.getVRDisplays().then((displays) => {
+  //     console.log('Displays: %o', displays);
+  //     positioner = new DevicePositioner(displays[0]);
+  //   });
+  // } else {
+  //   console.warn('navigator.getVRDisplays not available.');
+  // }
 
-  const renderer = new WebGLRenderer();
+  const canvas = document.createElement('canvas');
+  // document.body.appendChild(canvas);
+  const gl = canvas.getContext('webgl', {
+    compatibleXRDevice: session.device
+  });
+  const renderer = new WebGLRenderer({
+    canvas: canvas,
+    context: gl
+  });
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.vr.enabled = true;
-  const polyfill = new WebXRPolyfill(window);
+  renderer.vr.setDevice(device);
+  renderer.vr.setSession(session);
 
   document.body.appendChild(renderer.domElement);
 
@@ -132,8 +155,7 @@ function main() {
 
   console.log('Cube installed.');
 
-  const animate = () => {
-    requestAnimationFrame(animate);
+  renderer.setAnimationLoop(() => {
     vrControls.update();
 
     positioner.updateCamera(camera);
@@ -141,8 +163,37 @@ function main() {
     cube.rotation.x += 0.01;
     cube.rotation.y += 0.01;
     renderer.render(scene, camera);
+  });
+  // const animate = () => {
+  //   requestAnimationFrame(animate);
+  //   vrControls.update();
+
+  //   positioner.updateCamera(camera);
+
+  //   cube.rotation.x += 0.01;
+  //   cube.rotation.y += 0.01;
+  //   renderer.render(scene, camera);
+  // }
+  // animate();
+}
+
+function main() {
+  const polyfill = new WebXRPolyfill(window);
+
+  if (navigator.xr && navigator.xr.requestDevice) {
+    console.log('navigator.xr exists.');
+    navigator.xr.requestDevice().then((device) => {
+      device.supportsSession({immersive: true}).then(() => {
+        var enterXrBtn = document.createElement("button");
+        enterXrBtn.innerHTML = "Enter VR";
+        enterXrBtn.addEventListener("click", () => beginXRSession(device));
+        document.body.appendChild(enterXrBtn);
+      });
+    });
+  } else {
+    console.log('navigator.xr not found :(');
   }
-  animate();
+
 }
 
 main();
